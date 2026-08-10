@@ -74,14 +74,27 @@ def generate_reasoning(question: str, user_id: int):
     print("Querying Ollama for structured legal reasoning...")
     drafted_response = query_ollama(reasoning_prompt)
     if not drafted_response:
-        # Fallback in case of Ollama failure
-        drafted_response = """
-1. LEGAL BASIS — Section 73, Indian Contract Act.
-2. ARGUMENT — Aggrieved party is entitled to compensation for loss/damage naturally arising from breach.
-3. COUNTER TO OPPONENT'S POINT — Opponent's breach triggered the termination and liability clauses.
-4. CONFIDENCE — medium
-5. FLAGS — None.
-        """
+        # Context-aware fallback when Ollama is unavailable
+        if legal_context or case_context:
+            top_ref = (legal_context[0] if legal_context else case_context[0])
+            ref_title = top_ref.get('source') or top_ref.get('document_name') or 'legal documents'
+            sec_title = top_ref.get('section') or f"Article/Page {top_ref.get('page_number', '')}"
+            snippet = top_ref.get('text', '')[:300]
+            drafted_response = f"""
+1. LEGAL BASIS — Grounded in {ref_title} ({sec_title}).
+2. ARGUMENT — {snippet}
+3. COUNTER TO OPPONENT'S POINT — Evaluated against provided evidence.
+4. CONFIDENCE — high
+5. FLAGS — LLM unavailable; response constructed from RAG retrieval only.
+            """
+        else:
+            drafted_response = """
+1. LEGAL BASIS — No matching provisions found in uploaded evidence or Constitution.
+2. ARGUMENT — N/A
+3. COUNTER TO OPPONENT'S POINT — N/A
+4. CONFIDENCE — low
+5. FLAGS — Insufficient context. Please upload relevant case documents.
+            """
 
     # 4. Generate voice text delivery using local Ollama
     voice_prompt = VOICE_DELIVERY_PROMPT.format(
@@ -90,8 +103,15 @@ def generate_reasoning(question: str, user_id: int):
     print("Querying Ollama for voice delivery synthesis...")
     voice_text = query_ollama(voice_prompt)
     if not voice_text:
-        # Simple fallback
-        voice_text = "According to Section 73 of the Indian Contract Act, compensation is due for damages naturally arising from this contract breach."
+        # Context-aware voice fallback
+        if legal_context or case_context:
+            top_ref = (legal_context[0] if legal_context else case_context[0])
+            ref_title = top_ref.get('source') or top_ref.get('document_name') or 'the relevant legal provision'
+            sec_title = top_ref.get('section') or f"Article {top_ref.get('page_number', '')}"
+            snippet = top_ref.get('text', '')[:200]
+            voice_text = f"According to {ref_title}, {sec_title}: {snippet}."
+        else:
+            voice_text = "I do not have enough verified information in the uploaded case files or the Indian Constitution to answer that question. Please provide more case evidence."
 
     # 5. Simple verification validation
     verification_result = {

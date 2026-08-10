@@ -1,3 +1,10 @@
-.env
 __pycache__/
+*.pyc
 *.db
+*.log
+.env
+scratch/
+cloudflared.exe
+*.egg-info/
+dist/
+build/

@@ -1,0 +1,8 @@
+fastapi==0.141.1
+uvicorn==0.52.1
+httpx==0.28.1
+pymupdf==1.28.2
+python-multipart==0.0.32
+SpeechRecognition==3.17.0
+duckduckgo_search==8.1.1
+pydub==0.25.1
