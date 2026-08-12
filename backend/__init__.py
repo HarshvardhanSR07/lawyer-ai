@@ -1,0 +1,1 @@
+"""LawyerAI Backend Service"""
