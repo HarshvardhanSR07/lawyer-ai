@@ -46,7 +46,7 @@ async def lifespan(app: FastAPI):
     """Eagerly initialize all reusable backend resources once per Reserved instance."""
     global rag_retriever, reasoning_engine, rime_voice, whisper_transcriber, doc_parser, indian_lawyer_dataset
     beyond_client = None
-    dataset_task: Optional[asyncio.Task] = None
+    knowledge_bootstrap_task: Optional[asyncio.Task] = None
     logger.info("Starting persistent LawyerAI backend resources")
     try:
         rag_retriever = RAGRetriever()
@@ -66,19 +66,14 @@ async def lifespan(app: FastAPI):
         await rime_voice.initialize()
         await whisper_transcriber.initialize()
         await indian_lawyer_dataset.initialize()
-        success = await load_demo_data(rag_retriever)
-        if not success:
-            logger.warning("Demo data was not loaded; continuing without it")
 
         app.state.beyond_client = beyond_client
         app.state.ready = True
         app.state.indian_lawyer_dataset = indian_lawyer_dataset
-        auto_index_dataset = os.getenv("INDIAN_LAWYER_DATASET_AUTO_INDEX", "true").lower() in {"1", "true", "yes"}
-        if auto_index_dataset:
-            dataset_task = asyncio.create_task(indian_lawyer_dataset.index_all())
-            app.state.indian_lawyer_dataset_task = dataset_task
-            dataset_task.add_done_callback(_log_dataset_index_result)
-            logger.info("Indian Lawyer dataset indexing started in the persistent background worker")
+        knowledge_bootstrap_task = asyncio.create_task(_bootstrap_knowledge(rag_retriever, indian_lawyer_dataset))
+        app.state.indian_lawyer_dataset_task = knowledge_bootstrap_task
+        knowledge_bootstrap_task.add_done_callback(_log_dataset_index_result)
+        logger.info("Knowledge indexing is deferred until after the public service becomes ready")
         logger.info("Persistent LawyerAI backend is ready")
         yield
     except Exception:
@@ -86,7 +81,7 @@ async def lifespan(app: FastAPI):
         raise
     finally:
         app.state.ready = False
-        active_dataset_task = getattr(app.state, "indian_lawyer_dataset_task", dataset_task)
+        active_dataset_task = getattr(app.state, "indian_lawyer_dataset_task", knowledge_bootstrap_task)
         if active_dataset_task and not active_dataset_task.done():
             active_dataset_task.cancel()
             try:
@@ -120,6 +115,22 @@ def _log_dataset_index_result(task: asyncio.Task) -> None:
         task.result()
     except Exception:
         logger.exception("Indian Lawyer dataset indexing task failed")
+
+
+async def _bootstrap_knowledge(retriever: RAGRetriever, ingestor: IndianLawyerDatasetIngestor) -> None:
+    """Index seed knowledge after readiness so transient provider quotas cannot block port binding."""
+    delay = max(0.0, float(os.getenv("RAG_STARTUP_INDEX_DELAY_SECONDS", "60")))
+    if delay:
+        logger.info("Deferring initial knowledge indexing for %.0f seconds", delay)
+        await asyncio.sleep(delay)
+
+    success = await load_demo_data(retriever)
+    if not success:
+        logger.warning("Demo data was not loaded; continuing with the persistent service")
+
+    auto_index_dataset = os.getenv("INDIAN_LAWYER_DATASET_AUTO_INDEX", "true").lower() in {"1", "true", "yes"}
+    if auto_index_dataset:
+        await ingestor.index_all()
 allowed_origins = [
     origin.strip()
     for origin in os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")

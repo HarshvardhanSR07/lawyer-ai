@@ -8,6 +8,7 @@ Uses Hugging Face models to generate vector embeddings:
 
 import os
 import logging
+import asyncio
 from typing import List
 import numpy as np
 import httpx
@@ -51,10 +52,8 @@ class EmbeddingsModel:
                 headers={"Authorization": f"Bearer {self.openai_api_key}"},
                 timeout=httpx.Timeout(30.0, connect=10.0),
             )
-            # A short warm-up proves model availability before this instance becomes ready.
-            await self._embed_with_openai("legal retrieval readiness check")
             self.ready = True
-            logger.info("OpenAI embedding client warmed and ready")
+            logger.info("OpenAI embedding client initialized without a quota-consuming startup request")
             return
 
         try:
@@ -84,17 +83,32 @@ class EmbeddingsModel:
     async def _embed_with_openai(self, text: str) -> List[float]:
         if not self.http_client:
             raise RuntimeError("Embedding client is not initialized")
-        response = await self.http_client.post(
-            "/embeddings",
-            json={
-                "model": os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small"),
-                "input": text,
-                "dimensions": self.vector_dim,
-            },
-        )
-        response.raise_for_status()
-        payload = response.json()
-        return payload["data"][0]["embedding"]
+        response = await self._post_openai_embeddings(text)
+        return response.json()["data"][0]["embedding"]
+
+    async def _post_openai_embeddings(self, input_value: str | List[str]) -> httpx.Response:
+        """Submit one bounded embeddings request with short 429 backoff for live requests."""
+        if not self.http_client:
+            raise RuntimeError("Embedding client is not initialized")
+        attempts = max(1, int(os.getenv("OPENAI_EMBEDDING_MAX_ATTEMPTS", "3")))
+        response: httpx.Response | None = None
+        for attempt in range(attempts):
+            response = await self.http_client.post(
+                "/embeddings",
+                json={
+                    "model": os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small"),
+                    "input": input_value,
+                    "dimensions": self.vector_dim,
+                },
+            )
+            if response.status_code != 429 or attempt == attempts - 1:
+                response.raise_for_status()
+                return response
+            retry_after = response.headers.get("retry-after")
+            delay = min(float(retry_after) if retry_after else 2 ** attempt, 10.0)
+            logger.warning("OpenAI embeddings rate limited; retrying in %.1fs (%s/%s)", delay, attempt + 1, attempts)
+            await asyncio.sleep(delay)
+        raise RuntimeError("OpenAI embeddings request did not produce a response")
     
     async def embed_text(self, text: str) -> List[float]:
         """
@@ -148,15 +162,7 @@ class EmbeddingsModel:
             if self.provider == "openai":
                 if not self.http_client:
                     raise RuntimeError("Embedding client is not initialized")
-                response = await self.http_client.post(
-                    "/embeddings",
-                    json={
-                        "model": os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small"),
-                        "input": texts,
-                        "dimensions": self.vector_dim,
-                    },
-                )
-                response.raise_for_status()
+                response = await self._post_openai_embeddings(texts)
                 data = response.json()["data"]
                 return [item["embedding"] for item in sorted(data, key=lambda item: item["index"])]
 

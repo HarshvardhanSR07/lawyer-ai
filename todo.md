@@ -151,5 +151,8 @@
 - [x] Document the complete Render environment-variable checklist, including the required guest-session `JWT_SECRET` and deployed CORS origin
 - [x] Correct Qdrant Cloud transport configuration for the Render deployment and eliminate the 403 compatibility probe
 - [x] Require the configured remote embedding provider in production so Render never downloads the local multilingual embedding model at startup
-- [ ] Synchronize the validated Qdrant Cloud transport and production remote-embedding startup repair to GitHub
+- [x] Synchronize the validated Qdrant Cloud transport and production remote-embedding startup repair to GitHub at `c54402c`; Docker build run 31749643962 succeeded
+- [x] Rotate LawyerAI’s project `OPENAI_API_KEY` to the user-supplied credential; the bounded OpenAI validation and all six configured service probes passed
+- [x] Prevent transient OpenAI embeddings `429 Too Many Requests` responses from terminating Render startup through no-request initialization, deferred indexing, and bounded later-request retries
+- [ ] Synchronize the validated OpenAI rate-limit startup repair to GitHub and verify the production Docker build
 - [x] Add and format-check a parameterized GitHub Actions workflow and ECS task-definition template for the always-on LawyerAI Docker service

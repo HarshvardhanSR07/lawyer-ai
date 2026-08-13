@@ -41,6 +41,10 @@ Add these in **Render Dashboard → Service → Environment**. Enter secrets in 
 
 Render provides `PORT`; do **not** set it yourself. FastAPI's private port defaults to `8000`; do **not** expose it through Render.
 
+## Startup behavior
+
+The service initializes persistent clients during startup and reports readiness through `GET /health`. It does **not** make a quota-consuming OpenAI embeddings request before binding the public port. Demo and Indian Lawyer dataset indexing are deferred for `RAG_STARTUP_INDEX_DELAY_SECONDS` (default: `60`) so a transient provider `429` cannot terminate startup. Set `OPENAI_EMBEDDING_MAX_ATTEMPTS` (default: `3`) to control bounded retry attempts for later embedding requests.
+
 ## Deployment sequence
 
 First, confirm the service is deploying GitHub `main` at commit `921f9dc` or newer. Add the environment values above, click **Clear build cache & deploy**, and wait for the log line showing the public Node service listening on `0.0.0.0:$PORT`. Then request `https://<render-service>/health`; it must return HTTP 200 before testing the avatar, microphone, or document workflows.
