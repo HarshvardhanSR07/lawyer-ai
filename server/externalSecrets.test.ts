@@ -1,6 +1,21 @@
 import { describe, expect, it } from "vitest";
 
 describe("configured service credentials", () => {
+  it("authenticates to the configured Qdrant Cloud collections endpoint", async () => {
+    const baseUrl = process.env.QDRANT_URL;
+    const apiKey = process.env.QDRANT_API_KEY;
+
+    expect(baseUrl).toMatch(/^https:\/\/.+/);
+    expect(apiKey).toBeTruthy();
+
+    const response = await fetch(`${baseUrl!.replace(/\/$/, "")}/collections`, {
+      headers: { "api-key": apiKey! },
+      signal: AbortSignal.timeout(10_000),
+    });
+
+    expect(response.status).toBe(200);
+  }, 15_000);
+
   it("authenticates to the configured Supabase REST endpoint", async () => {
     const baseUrl = process.env.SUPABASE_URL;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

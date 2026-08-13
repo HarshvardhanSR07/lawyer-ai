@@ -51,7 +51,15 @@ class RAGRetriever:
         self.qdrant_api_key = os.getenv("QDRANT_API_KEY", "")
         if not self.qdrant_url:
             raise RuntimeError("QDRANT_URL must be configured for the persistent RAG backend")
-        self.client = QdrantClient(url=self.qdrant_url, api_key=self.qdrant_api_key or None, timeout=20)
+        self.client = QdrantClient(
+            url=self.qdrant_url,
+            port=None,
+            prefer_grpc=False,
+            https=True,
+            api_key=self.qdrant_api_key or None,
+            timeout=20,
+            check_compatibility=False,
+        )
         self.embeddings = EmbeddingsModel()
         self.legal_collection = "legal_knowledge"
         self.case_collection = "case_knowledge"

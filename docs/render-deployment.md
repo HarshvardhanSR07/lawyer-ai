@@ -36,7 +36,7 @@ Add these in **Render Dashboard → Service → Environment**. Enter secrets in 
 | `SUPABASE_URL` | Required | Supabase persistence endpoint. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Required | Server-only Supabase persistence key. |
 | `CORS_ORIGINS` | Required in production | The public Render origin, for example `https://your-service.onrender.com`. |
-| `EMBEDDINGS_PROVIDER` | Recommended | Set to `openai` for the configured production embedding path. |
+| `EMBEDDINGS_PROVIDER` | Required | Set to `openai`; production startup rejects local fallback models to avoid memory-heavy downloads. |
 | `INDIAN_LAWYER_DATASET_AUTO_INDEX` | Optional | Defaults to `true`; use `false` only to defer dataset indexing while validating infrastructure. |
 
 Render provides `PORT`; do **not** set it yourself. FastAPI's private port defaults to `8000`; do **not** expose it through Render.

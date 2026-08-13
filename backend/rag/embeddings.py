@@ -19,7 +19,11 @@ class EmbeddingsModel:
         """Define the embedding configuration; resources are opened by initialize()."""
         self.model_name = os.getenv("EMBEDDINGS_MODEL", "intfloat/multilingual-e5-large")
         self.openai_api_key = os.getenv("OPENAI_API_KEY", "")
-        self.provider = os.getenv("EMBEDDINGS_PROVIDER", "openai" if self.openai_api_key else "local")
+        self.is_production = os.getenv("NODE_ENV", "").lower() == "production" or bool(os.getenv("RENDER"))
+        configured_provider = os.getenv("EMBEDDINGS_PROVIDER", "").lower()
+        self.provider = configured_provider or ("openai" if self.is_production or self.openai_api_key else "local")
+        if self.provider not in {"openai", "local"}:
+            raise RuntimeError("EMBEDDINGS_PROVIDER must be either 'openai' or 'local'")
         self.vector_dim = int(os.getenv("EMBEDDING_DIMENSIONS", "768"))
         logger.info(f"Using embeddings model: {self.model_name}")
         
@@ -36,9 +40,12 @@ class EmbeddingsModel:
         if self.ready:
             return
 
+        if self.is_production and self.provider != "openai":
+            raise RuntimeError("Production RAG requires EMBEDDINGS_PROVIDER=openai; local model downloads are disabled")
+
         if self.provider == "openai":
             if not self.openai_api_key:
-                raise RuntimeError("OPENAI_API_KEY is required when EMBEDDINGS_PROVIDER=openai")
+                raise RuntimeError("OPENAI_API_KEY is required for production remote embeddings")
             self.http_client = httpx.AsyncClient(
                 base_url=os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1"),
                 headers={"Authorization": f"Bearer {self.openai_api_key}"},

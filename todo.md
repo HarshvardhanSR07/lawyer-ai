@@ -147,5 +147,9 @@
 - [x] Synchronize the validated parser, guest-session, no-auth startup, and listener repair to GitHub at `921f9dc`; Docker build run 31740845533 succeeded
 - [ ] Verify and correct the hosting deployment’s stale source revision so it builds GitHub commit `921f9dc` or newer
 - [ ] Configure `QDRANT_URL` and `QDRANT_API_KEY` in Render for the persistent RAG backend, then redeploy and verify `/health`
+- [x] Rotate LawyerAI’s project `QDRANT_URL` and `QDRANT_API_KEY` to the user-supplied Qdrant Cloud credentials; live Qdrant collections probe passed
 - [x] Document the complete Render environment-variable checklist, including the required guest-session `JWT_SECRET` and deployed CORS origin
+- [x] Correct Qdrant Cloud transport configuration for the Render deployment and eliminate the 403 compatibility probe
+- [x] Require the configured remote embedding provider in production so Render never downloads the local multilingual embedding model at startup
+- [ ] Synchronize the validated Qdrant Cloud transport and production remote-embedding startup repair to GitHub
 - [x] Add and format-check a parameterized GitHub Actions workflow and ECS task-definition template for the always-on LawyerAI Docker service
