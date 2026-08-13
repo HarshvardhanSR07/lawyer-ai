@@ -32,7 +32,8 @@ Configure these values through the project’s secure settings. **Do not commit 
 | `FASTAPI_INTERNAL_URL` | No | Node | Overrides the default internal readiness address `http://127.0.0.1:$FASTAPI_PORT`. |
 | `CORS_ORIGINS` | Recommended | FastAPI | Comma-separated browser origins; defaults to `http://localhost:3000` for development. |
 | `PORT` | Platform-managed | Node | Public listener. Do not hard-code this value. |
-| `DATABASE_URL`, `JWT_SECRET`, `VITE_APP_ID`, `OAUTH_SERVER_URL`, `VITE_OAUTH_PORTAL_URL` | Platform-managed | Node | Standard project database, session, and OAuth settings. |
+| `JWT_SECRET` | Yes | Node | Signs isolated, browser-scoped guest sessions for the no-auth MVP. Use a high-entropy production secret. |
+| `DATABASE_URL` | Conditional | Node | Required only for procedures that use the template database helpers. |
 
 > **Voice policy:** Rime supplies text-to-speech only. Hugging Face Whisper is the approved speech-to-text provider for this deployment once `HUGGINGFACE_API_KEY` validation succeeds; typed input remains available whenever microphone transcription is unavailable. Legal reasoning, citations, and Rime audio responses continue to work even if the avatar renderer cannot start.
 
@@ -40,7 +41,7 @@ Configure these values through the project’s secure settings. **Do not commit 
 
 ## Reserved Hosting Process Contract
 
-At startup, the public Node process starts one private Uvicorn process. The public process waits for FastAPI’s `GET /health` readiness check before listening on `PORT`. FastAPI creates its Qdrant client, embedding provider, reasoning client, Rime client, document parser, and Beyond Presence HTTP client exactly once in its lifespan; it closes them on process shutdown. The Node health route forwards the private health result, allowing the hosting platform to test the public endpoint without exposing the internal port.
+At startup, the public Node process starts one private Uvicorn process. The public process waits for FastAPI’s `GET /health` readiness check before listening on the platform-supplied `PORT` at `0.0.0.0`. FastAPI creates its Qdrant client, embedding provider, reasoning client, Rime client, document parser, and Beyond Presence HTTP client exactly once in its lifespan; it closes them on process shutdown. The Node health route forwards the private health result, allowing the hosting platform to test the public endpoint without exposing the internal port. The no-auth MVP uses a signed, browser-scoped guest-session cookie rather than OAuth routes.
 
 When `INDIAN_LAWYER_DATASET_AUTO_INDEX=true`, the persistent process starts the deterministic public-dataset upsert after core readiness. `/health` reports its indexing status, row count, and chunk count. This data is illustrative drafting material only: retrieved rows retain dataset provenance and cannot independently satisfy the legal verification gate.
 

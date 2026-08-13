@@ -144,5 +144,8 @@
 - [x] Fix the Python parser f-string import syntax error and add citation-parser regressions
 - [x] Remove OAuth routes and SDK initialization from the no-auth MVP startup path; use signed browser-scoped guest sessions for isolated persistence
 - [x] Verify the public listener binds exactly to the host-provided `PORT` on `0.0.0.0` while preserving the combined `/health` route
-- [ ] Synchronize the validated parser, guest-session, no-auth startup, and listener repair to the GitHub deployment source
+- [x] Synchronize the validated parser, guest-session, no-auth startup, and listener repair to GitHub at `921f9dc`; Docker build run 31740845533 succeeded
+- [ ] Verify and correct the hosting deployment’s stale source revision so it builds GitHub commit `921f9dc` or newer
+- [ ] Configure `QDRANT_URL` and `QDRANT_API_KEY` in Render for the persistent RAG backend, then redeploy and verify `/health`
+- [x] Document the complete Render environment-variable checklist, including the required guest-session `JWT_SECRET` and deployed CORS origin
 - [x] Add and format-check a parameterized GitHub Actions workflow and ECS task-definition template for the always-on LawyerAI Docker service
