@@ -132,5 +132,13 @@
 - [x] Run the known-audio live transcription acceptance through the application’s FastAPI STT route and Node-to-FastAPI proxy
 - [x] Optimize retrieval latency and ingestion throughput with shared query embeddings, concurrent Qdrant searches, batched embedding requests, and deterministic case-document IDs
 - [ ] Verify the production Docker deployment health endpoint on its public URL and record the successful `GET /health` result
-- [ ] Export the checkpointed LawyerAI source to the `HarshvardhanSR07/lawyer-ai` GitHub repository with the existing repository preserved on a backup branch
-- [ ] Configure and verify a GitHub-connected Docker deployment for the exported LawyerAI source
+- [x] Export the checkpointed LawyerAI source to the `HarshvardhanSR07/lawyer-ai` GitHub repository with the existing repository preserved on `legacy-render-main-20260812`
+- [ ] Configure and verify a GitHub-connected Docker deployment for the exported LawyerAI source through Amazon ECR and Amazon ECS
+- [ ] Replace the unresolved `MY_AWS_*`, `MY_ECR_REPOSITORY`, `MY_ECS_SERVICE`, `MY_ECS_CLUSTER`, task-definition, and container-name placeholders in the user-added AWS workflow
+- [x] Audit all Python and Node production dependency pins for valid published versions and compatible Python support
+- [x] Replace the invalid `qdrant-client==2.7.0` requirement with `qdrant-client==1.19.0` and resolve the production requirements against Python 3.11
+- [x] Pin the Docker base to a Python-compatible Node 22 Bookworm image and exclude local secrets and dependency artifacts from the Docker build context
+- [x] Add regression coverage for the Qdrant package pin and the Python-compatible Docker runtime contract
+- [ ] Add a credential-free GitHub Actions Docker build validation and retire the failing placeholder ECS workflow
+- [ ] Guard the OIDC ECS workflow until AWS resource variables and the deploy-role secret are configured
+- [x] Add and format-check a parameterized GitHub Actions workflow and ECS task-definition template for the always-on LawyerAI Docker service

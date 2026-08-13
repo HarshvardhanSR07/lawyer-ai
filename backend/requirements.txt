@@ -3,7 +3,7 @@ uvicorn[standard]==0.24.0
 pydantic==2.5.0
 python-multipart==0.0.6
 httpx==0.25.2
-qdrant-client==2.7.0
+qdrant-client==1.19.0
 transformers==4.35.2
 torch==2.1.1
 pymupdf==1.23.8
