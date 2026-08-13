@@ -106,7 +106,8 @@ class DocumentParser:
         for pattern in patterns:
             match = re.search(pattern, text, re.IGNORECASE)
             if match:
-                return f"{pattern.split(r'\s+')[0]} {match.group(1)}"
+                first_part = pattern.split(r"\s+")[0]
+                return f"{first_part} {match.group(1)}"
         
         return ""
     

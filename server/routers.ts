@@ -1,5 +1,5 @@
-import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
+import { GUEST_SESSION_COOKIE } from "./_core/guestSession";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import { z } from "zod";
@@ -18,7 +18,7 @@ export const appRouter = router({
     me: publicProcedure.query(opts => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
-      ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
+      ctx.res.clearCookie(GUEST_SESSION_COOKIE, { ...cookieOptions, maxAge: -1 });
       return {
         success: true,
       } as const;

@@ -139,6 +139,10 @@
 - [x] Replace the invalid `qdrant-client==2.7.0` requirement with `qdrant-client==1.19.0` and resolve the production requirements against Python 3.11
 - [x] Pin the Docker base to a Python-compatible Node 22 Bookworm image and exclude local secrets and dependency artifacts from the Docker build context
 - [x] Add regression coverage for the Qdrant package pin and the Python-compatible Docker runtime contract
-- [ ] Add a credential-free GitHub Actions Docker build validation and retire the failing placeholder ECS workflow
-- [ ] Guard the OIDC ECS workflow until AWS resource variables and the deploy-role secret are configured
+- [x] Add a credential-free GitHub Actions Docker build validation and retire the failing placeholder ECS workflow; run 31738048802 built successfully
+- [x] Guard the OIDC ECS workflow until AWS resource variables and the deploy-role secret are configured
+- [x] Fix the Python parser f-string import syntax error and add citation-parser regressions
+- [x] Remove OAuth routes and SDK initialization from the no-auth MVP startup path; use signed browser-scoped guest sessions for isolated persistence
+- [x] Verify the public listener binds exactly to the host-provided `PORT` on `0.0.0.0` while preserving the combined `/health` route
+- [ ] Synchronize the validated parser, guest-session, no-auth startup, and listener repair to the GitHub deployment source
 - [x] Add and format-check a parameterized GitHub Actions workflow and ECS task-definition template for the always-on LawyerAI Docker service
