@@ -21,13 +21,24 @@ logger = logging.getLogger(__name__)
 
 class ReasoningEngine:
     def __init__(self):
-        """Initialize reasoning engine with Hugging Face model"""
+        """Initialize the configured remote legal-reasoning provider."""
         self.hf_api_key = os.getenv("HUGGINGFACE_API_KEY", "")
-        self.hf_model = os.getenv("REASONING_MODEL", "mistralai/Mistral-7B-Instruct-v0.3")
+        self.reasoning_provider = os.getenv("REASONING_PROVIDER", "huggingface_router").lower()
+        default_model = (
+            "openai/gpt-oss-120b:fastest"
+            if self.reasoning_provider == "huggingface_router"
+            else "mistralai/Mistral-7B-Instruct-v0.3"
+        )
+        self.hf_model = os.getenv("REASONING_MODEL", default_model)
         self.hf_api_url = "https://api-inference.huggingface.co/models"
+        self.hf_router_api_base = os.getenv("HF_ROUTER_API_BASE", "https://router.huggingface.co/v1").rstrip("/")
         self.http_client: httpx.AsyncClient | None = None
         
-        logger.info(f"Reasoning engine initialized with model: {self.hf_model}")
+        logger.info(
+            "Reasoning engine initialized with provider=%s model=%s",
+            self.reasoning_provider,
+            self.hf_model,
+        )
 
     async def initialize(self):
         """Open the reusable LLM HTTP client once during app startup."""
@@ -40,44 +51,65 @@ class ReasoningEngine:
     
     async def _call_llm(self, prompt: str, system_prompt: str = "") -> str:
         """
-        Call Hugging Face LLM with given prompt.
+        Call the configured Hugging Face LLM with the supplied legal prompt.
         
         Returns: Generated text response
         """
         try:
             if not self.http_client:
                 raise RuntimeError("Reasoning client is not initialized")
+            if not self.hf_api_key:
+                raise RuntimeError("HUGGINGFACE_API_KEY must be configured for legal reasoning")
             headers = {"Authorization": f"Bearer {self.hf_api_key}"}
-            
-            # Build the full prompt
-            if system_prompt:
-                full_prompt = f"{system_prompt}\n\n{prompt}"
-            else:
-                full_prompt = prompt
-            
-            payload = {
-                "inputs": full_prompt,
-                "parameters": {
-                    "max_new_tokens": 1024,
-                    "temperature": 0.7,
-                    "top_p": 0.95,
-                }
-            }
-            
-            response = await self.http_client.post(
-                f"{self.hf_api_url}/{self.hf_model}",
-                json=payload,
-                headers=headers,
-            )
-            response.raise_for_status()
 
-            result = response.json()
-            if isinstance(result, list):
-                return result[0].get("generated_text", "")
-            return result.get("generated_text", "")
+            if self.reasoning_provider == "huggingface_router":
+                messages = []
+                if system_prompt:
+                    messages.append({"role": "system", "content": system_prompt})
+                messages.append({"role": "user", "content": prompt})
+                response = await self.http_client.post(
+                    f"{self.hf_router_api_base}/chat/completions",
+                    json={
+                        "model": self.hf_model,
+                        "messages": messages,
+                        "max_tokens": 1024,
+                        "temperature": 0.7,
+                        "top_p": 0.95,
+                    },
+                    headers=headers,
+                )
+                response.raise_for_status()
+                result = response.json()
+                choices = result.get("choices", [])
+                content = choices[0].get("message", {}).get("content", "") if choices else ""
+                if not isinstance(content, str) or not content.strip():
+                    raise RuntimeError("Hugging Face router returned no legal-reasoning content")
+                return content
+
+            if self.reasoning_provider == "huggingface_inference":
+                full_prompt = f"{system_prompt}\n\n{prompt}" if system_prompt else prompt
+                response = await self.http_client.post(
+                    f"{self.hf_api_url}/{self.hf_model}",
+                    json={
+                        "inputs": full_prompt,
+                        "parameters": {
+                            "max_new_tokens": 1024,
+                            "temperature": 0.7,
+                            "top_p": 0.95,
+                        },
+                    },
+                    headers=headers,
+                )
+                response.raise_for_status()
+                result = response.json()
+                if isinstance(result, list):
+                    return result[0].get("generated_text", "")
+                return result.get("generated_text", "")
+
+            raise RuntimeError(f"Unsupported REASONING_PROVIDER: {self.reasoning_provider}")
         
         except Exception as e:
-            logger.error(f"LLM call error: {e}")
+            logger.error("LLM call error: %s", e)
             raise
     
     async def reason(

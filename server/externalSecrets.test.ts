@@ -75,6 +75,19 @@ describe("configured service credentials", () => {
     expect(response.status).toBe(200);
   }, 15_000);
 
+  it("authenticates the configured Groq key before any provider transition", async () => {
+    const apiKey = process.env.GROQ_API_KEY;
+
+    expect(apiKey).toBeTruthy();
+
+    const response = await fetch("https://api.groq.com/openai/v1/models", {
+      headers: { Authorization: `Bearer ${apiKey!}` },
+      signal: AbortSignal.timeout(10_000),
+    });
+
+    expect(response.status).toBe(200);
+  }, 15_000);
+
   it("authenticates the configured Rime key for legal-response synthesis", async () => {
     const apiKey = process.env.RIME_API_KEY;
 

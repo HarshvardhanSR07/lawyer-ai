@@ -163,3 +163,6 @@
 - [ ] Configure the rotated `HUGGINGFACE_API_KEY` in Render and verify production reports `whisper_client: ready`
 - [x] Diagnose and repair the code path behind the production Indian Lawyer dataset indexing failure with bounded `LEGAL_INDEX_BATCH_SIZE` batches and provider-error context; 30 backend tests pass
 - [ ] Redeploy the bounded legal-index batching repair to Render and verify health reports Indian Lawyer ingestion without the `expected 128, indexed 0` failure and with indexed Qdrant points
+- [ ] Replace the OpenAI-dependent provider configuration with a validated Groq-compatible path while preserving remote embeddings, fail-closed legal verification, and production fallbacks
+- [ ] Select and securely configure an OpenAI-replacement embedding provider, then migrate Qdrant vector collections and reindex legal sources before removing `OPENAI_API_KEY`
+- [x] Route verified legal reasoning through Hugging Face’s OpenAI-compatible router using `openai/gpt-oss-120b:fastest`, while preserving the fail-closed verification gate; router content and JSON-envelope checks passed

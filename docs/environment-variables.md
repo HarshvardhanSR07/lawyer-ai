@@ -23,8 +23,10 @@ Configure these values through the project’s secure settings. **Do not commit 
 | `EMBEDDING_DIMENSIONS` | No | FastAPI | Defaults to `768`; must match the Qdrant collection dimension. |
 | `LEGAL_INDEX_BATCH_SIZE` | No | FastAPI | Defaults to `16`; bounds each remote embedding and Qdrant upsert batch while indexing legal sources and the Indian Lawyer dataset. |
 | `EMBEDDINGS_MODEL` | Conditional | FastAPI | Required only for local embeddings; defaults to `intfloat/multilingual-e5-large`. |
-| `HUGGINGFACE_API_KEY` | Yes for Hugging Face reasoning and Whisper STT | FastAPI | Authorizes the configured remote reasoning model and approved Whisper transcription requests. |
-| `REASONING_MODEL` | No | FastAPI | Defaults to `mistralai/Mistral-7B-Instruct-v0.3`. |
+| `HUGGINGFACE_API_KEY` | Yes for Hugging Face router reasoning and Whisper STT | FastAPI | Authorizes the configured remote reasoning model and approved Whisper transcription requests. |
+| `REASONING_PROVIDER` | No | FastAPI | Defaults to `huggingface_router`. Use `huggingface_inference` only to retain the legacy direct Hugging Face inference endpoint. |
+| `REASONING_MODEL` | No | FastAPI | Defaults to `openai/gpt-oss-120b:fastest` when `REASONING_PROVIDER=huggingface_router`. |
+| `HF_ROUTER_API_BASE` | No | FastAPI | Defaults to `https://router.huggingface.co/v1`; override only for an approved compatible router. |
 | `WHISPER_MODEL` | No | FastAPI | Model identifier for Hugging Face Whisper STT once enabled. |
 | `INDIAN_LAWYER_DATASET_AUTO_INDEX` | No | FastAPI | Defaults to `true` on the always-on instance; set to `false` only to defer public `default/train` indexing. The import runs in the persistent background worker after readiness. |
 | `SUPABASE_URL` | Yes | Node | LawyerAI session, document, and transcript persistence endpoint. |
