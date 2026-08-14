@@ -154,5 +154,8 @@
 - [x] Synchronize the validated Qdrant Cloud transport and production remote-embedding startup repair to GitHub at `c54402c`; Docker build run 31749643962 succeeded
 - [x] Rotate LawyerAI’s project `OPENAI_API_KEY` to the user-supplied credential; the bounded OpenAI validation and all six configured service probes passed
 - [x] Prevent transient OpenAI embeddings `429 Too Many Requests` responses from terminating Render startup through no-request initialization, deferred indexing, and bounded later-request retries
-- [ ] Synchronize the validated OpenAI rate-limit startup repair to GitHub and verify the production Docker build
+- [x] Synchronize the validated OpenAI rate-limit startup repair to GitHub at `9a70e73`; Docker build run 31753395312 succeeded
+- [ ] Configure `RIME_API_KEY` in Render for the required verified-response TTS client, then redeploy and verify `/health`
+- [x] Make Hugging Face Whisper initialization non-fatal so typed legal assistance remains available if microphone transcription is unavailable
+- [x] Document and verify the intentional production remote-embedding provider selection so startup logs cannot be mistaken for an unsafe local-model fallback
 - [x] Add and format-check a parameterized GitHub Actions workflow and ECS task-definition template for the always-on LawyerAI Docker service

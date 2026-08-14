@@ -26,7 +26,14 @@ class EmbeddingsModel:
         if self.provider not in {"openai", "local"}:
             raise RuntimeError("EMBEDDINGS_PROVIDER must be either 'openai' or 'local'")
         self.vector_dim = int(os.getenv("EMBEDDING_DIMENSIONS", "768"))
-        logger.info(f"Using embeddings model: {self.model_name}")
+        if self.provider == "openai":
+            logger.info(
+                "Using remote OpenAI embeddings model %s with %s dimensions; no local Hugging Face model will load",
+                os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small"),
+                self.vector_dim,
+            )
+        else:
+            logger.info("Using local Hugging Face embeddings model: %s", self.model_name)
         
         # Lazy load the model
         self.model = None

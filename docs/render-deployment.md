@@ -26,7 +26,7 @@ Add these in **Render Dashboard → Service → Environment**. Enter secrets in 
 | `QDRANT_API_KEY` | Required for protected Qdrant | The Qdrant cluster API key. |
 | `JWT_SECRET` | Required | A high-entropy secret used to sign browser-scoped guest sessions in this no-auth MVP. Generate a new value for Render. |
 | `OPENAI_API_KEY` | Required | Used for eager OpenAI embeddings when `EMBEDDINGS_PROVIDER=openai`. |
-| `HUGGINGFACE_API_KEY` | Required | Used for reasoning and Whisper transcription. |
+| `HUGGINGFACE_API_KEY` | Recommended | Used for reasoning and Whisper transcription. If it is unavailable, microphone transcription is disabled while typed legal assistance remains available. |
 | `RIME_API_KEY` | Required | Used only for verified legal-response text-to-speech. |
 | `BEY_API_KEY` | Required | Beyond Presence render-only API key; `BEYOND_PRESENCE_API_KEY` is also accepted for compatibility. |
 | `BEYOND_PRESENCE_AVATAR_ID` | Required | Approved Beyond Presence avatar identifier. |
@@ -36,14 +36,14 @@ Add these in **Render Dashboard → Service → Environment**. Enter secrets in 
 | `SUPABASE_URL` | Required | Supabase persistence endpoint. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Required | Server-only Supabase persistence key. |
 | `CORS_ORIGINS` | Required in production | The public Render origin, for example `https://your-service.onrender.com`. |
-| `EMBEDDINGS_PROVIDER` | Required | Set to `openai`; production startup rejects local fallback models to avoid memory-heavy downloads. |
+| `EMBEDDINGS_PROVIDER` | Required | Set to `openai`; production uses the remote `OPENAI_EMBEDDING_MODEL` (default: `text-embedding-3-small`) and rejects local fallback models to avoid memory-heavy downloads. |
 | `INDIAN_LAWYER_DATASET_AUTO_INDEX` | Optional | Defaults to `true`; use `false` only to defer dataset indexing while validating infrastructure. |
 
 Render provides `PORT`; do **not** set it yourself. FastAPI's private port defaults to `8000`; do **not** expose it through Render.
 
 ## Startup behavior
 
-The service initializes persistent clients during startup and reports readiness through `GET /health`. It does **not** make a quota-consuming OpenAI embeddings request before binding the public port. Demo and Indian Lawyer dataset indexing are deferred for `RAG_STARTUP_INDEX_DELAY_SECONDS` (default: `60`) so a transient provider `429` cannot terminate startup. Set `OPENAI_EMBEDDING_MAX_ATTEMPTS` (default: `3`) to control bounded retry attempts for later embedding requests.
+The service initializes persistent clients during startup and reports readiness through `GET /health`. It does **not** make a quota-consuming OpenAI embeddings request before binding the public port. Demo and Indian Lawyer dataset indexing are deferred for `RAG_STARTUP_INDEX_DELAY_SECONDS` (default: `60`) so a transient provider `429` cannot terminate startup. Set `OPENAI_EMBEDDING_MAX_ATTEMPTS` (default: `3`) to control bounded retry attempts for later embedding requests. If Whisper initialization fails, the service remains healthy and returns a clear microphone-unavailable response from `/api/stt`; typed questions remain available.
 
 ## Deployment sequence
 

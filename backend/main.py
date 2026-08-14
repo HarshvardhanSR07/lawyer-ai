@@ -41,6 +41,22 @@ doc_parser: Optional[DocumentParser] = None
 indian_lawyer_dataset: Optional[IndianLawyerDatasetIngestor] = None
 
 
+async def _initialize_optional_whisper(app: FastAPI, candidate: WhisperTranscriber) -> Optional[WhisperTranscriber]:
+    """Initialize microphone transcription without making typed legal assistance unavailable."""
+    try:
+        await candidate.initialize()
+    except Exception as exc:
+        logger.warning("Whisper unavailable; microphone transcription is disabled while typed assistance remains available: %s", exc)
+        await candidate.close()
+        app.state.whisper_status = "unavailable"
+        app.state.whisper_startup_error = "Microphone transcription is temporarily unavailable. You can continue with typed questions."
+        return None
+
+    app.state.whisper_status = "ready"
+    app.state.whisper_startup_error = None
+    return candidate
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Eagerly initialize all reusable backend resources once per Reserved instance."""
@@ -52,7 +68,7 @@ async def lifespan(app: FastAPI):
         rag_retriever = RAGRetriever()
         reasoning_engine = ReasoningEngine()
         rime_voice = RimeVoice()
-        whisper_transcriber = WhisperTranscriber()
+        whisper_candidate = WhisperTranscriber()
         doc_parser = DocumentParser()
         indian_lawyer_dataset = IndianLawyerDatasetIngestor(rag_retriever)
         beyond_client = httpx.AsyncClient(
@@ -64,7 +80,7 @@ async def lifespan(app: FastAPI):
         await rag_retriever.initialize()
         await reasoning_engine.initialize()
         await rime_voice.initialize()
-        await whisper_transcriber.initialize()
+        whisper_transcriber = await _initialize_optional_whisper(app, whisper_candidate)
         await indian_lawyer_dataset.initialize()
 
         app.state.beyond_client = beyond_client
@@ -204,7 +220,7 @@ class DocumentUploadResponse(BaseModel):
 @app.get("/health")
 async def health_check():
     """Return 200 only after persistent dependencies are ready for live legal sessions."""
-    if not getattr(app.state, "ready", False) or not rag_retriever or not rime_voice or not whisper_transcriber:
+    if not getattr(app.state, "ready", False) or not rag_retriever or not rime_voice:
         raise HTTPException(status_code=503, detail="Backend resources are not ready")
     try:
         rag_retriever.client.get_collections()
@@ -222,7 +238,7 @@ async def health_check():
             "qdrant": "ready",
             "embeddings": "ready",
             "rime_client": "ready",
-            "whisper_client": "ready" if whisper_transcriber.http_client else "unavailable",
+            "whisper_client": getattr(app.state, "whisper_status", "unavailable"),
             "beyond_client": "ready" if getattr(app.state, "beyond_client", None) else "unavailable",
             "indian_lawyer_dataset": indian_lawyer_dataset.snapshot() if indian_lawyer_dataset else {"status": "unavailable"},
         },
@@ -261,7 +277,10 @@ async def speech_to_text(request: STTRequest):
     """
     try:
         if not whisper_transcriber:
-            raise HTTPException(status_code=503, detail="Whisper transcription is not ready")
+            raise HTTPException(
+                status_code=503,
+                detail=getattr(app.state, "whisper_startup_error", "Whisper transcription is not ready"),
+            )
         audio_bytes = base64.b64decode(request.audio_base64, validate=True)
         result = await whisper_transcriber.transcribe(audio_bytes, request.mime_type)
         return STTResponse(
@@ -274,6 +293,8 @@ async def speech_to_text(request: STTRequest):
     except httpx.HTTPStatusError as e:
         logger.error("Whisper request failed: %s", e.response.status_code)
         raise HTTPException(status_code=502, detail="Whisper transcription provider is unavailable")
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"STT error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
