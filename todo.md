@@ -122,7 +122,7 @@
 - [ ] Deliver to user
 - [x] Stabilize the Beyond Presence external credential test with an explicit bounded request timeout and non-flaky assertion
 - [x] Replace the external Beyond Presence probe’s exact-status assertion with an authentication-validity assertion that tolerates transient provider responses
-- [ ] Verify the user-confirmed Docker deployment uses a minimum instance count of one and the production combined service returns 200 from `GET /health`
+- [x] Verify the user-confirmed Docker deployment uses a minimum instance count of one and the production combined service returns 200 from `GET /health`
 - [x] Retrieve Hugging Face Indian Lawyer dataset split names and Parquet file metadata
 - [x] Inspect the Indian Lawyer dataset schema and select provenance-preserving legal fields for RAG ingestion
 - [x] Verify the persistent ingestion job performs idempotent Qdrant upserts with stable point identities
@@ -131,7 +131,7 @@
 - [x] Strengthen the live Whisper acceptance test with a defined full-phrase transcription accuracy threshold
 - [x] Run the known-audio live transcription acceptance through the application’s FastAPI STT route and Node-to-FastAPI proxy
 - [x] Optimize retrieval latency and ingestion throughput with shared query embeddings, concurrent Qdrant searches, batched embedding requests, and deterministic case-document IDs
-- [ ] Verify the production Docker deployment health endpoint on its public URL and record the successful `GET /health` result
+- [x] Verify the production Docker deployment health endpoint on its public URL and record the successful `GET /health` result: `https://lawyer-ai-7sel.onrender.com/health` returned the reserved-persistent readiness JSON on 2026-08-14
 - [x] Export the checkpointed LawyerAI source to the `HarshvardhanSR07/lawyer-ai` GitHub repository with the existing repository preserved on `legacy-render-main-20260812`
 - [ ] Configure and verify a GitHub-connected Docker deployment for the exported LawyerAI source through Amazon ECR and Amazon ECS
 - [ ] Replace the unresolved `MY_AWS_*`, `MY_ECR_REPOSITORY`, `MY_ECS_SERVICE`, `MY_ECS_CLUSTER`, task-definition, and container-name placeholders in the user-added AWS workflow
@@ -145,8 +145,8 @@
 - [x] Remove OAuth routes and SDK initialization from the no-auth MVP startup path; use signed browser-scoped guest sessions for isolated persistence
 - [x] Verify the public listener binds exactly to the host-provided `PORT` on `0.0.0.0` while preserving the combined `/health` route
 - [x] Synchronize the validated parser, guest-session, no-auth startup, and listener repair to GitHub at `921f9dc`; Docker build run 31740845533 succeeded
-- [ ] Verify and correct the hosting deployment’s stale source revision so it builds GitHub commit `921f9dc` or newer
-- [ ] Configure `QDRANT_URL` and `QDRANT_API_KEY` in Render for the persistent RAG backend, then redeploy and verify `/health`
+- [ ] Verify the active Render deployment revision/commit directly and record proof that the public service is running GitHub commit `921f9dc` or newer
+- [x] Configure `QDRANT_URL` and `QDRANT_API_KEY` in Render for the persistent RAG backend, then redeploy and verify `/health`; production reports `qdrant: ready`
 - [x] Rotate LawyerAI’s project `QDRANT_URL` and `QDRANT_API_KEY` to the user-supplied Qdrant Cloud credentials; live Qdrant collections probe passed
 - [x] Document the complete Render environment-variable checklist, including the required guest-session `JWT_SECRET` and deployed CORS origin
 - [x] Correct Qdrant Cloud transport configuration for the Render deployment and eliminate the 403 compatibility probe
@@ -155,7 +155,11 @@
 - [x] Rotate LawyerAI’s project `OPENAI_API_KEY` to the user-supplied credential; the bounded OpenAI validation and all six configured service probes passed
 - [x] Prevent transient OpenAI embeddings `429 Too Many Requests` responses from terminating Render startup through no-request initialization, deferred indexing, and bounded later-request retries
 - [x] Synchronize the validated OpenAI rate-limit startup repair to GitHub at `9a70e73`; Docker build run 31753395312 succeeded
-- [ ] Configure `RIME_API_KEY` in Render for the required verified-response TTS client, then redeploy and verify `/health`
+- [x] Configure `RIME_API_KEY` in Render for the required verified-response TTS client, then redeploy and verify `/health`; production reports `rime_client: ready`
 - [x] Make Hugging Face Whisper initialization non-fatal so typed legal assistance remains available if microphone transcription is unavailable
 - [x] Document and verify the intentional production remote-embedding provider selection so startup logs cannot be mistaken for an unsafe local-model fallback
 - [x] Add and format-check a parameterized GitHub Actions workflow and ECS task-definition template for the always-on LawyerAI Docker service
+- [x] Rotate the project `HUGGINGFACE_API_KEY` to the user-supplied credential and validate the secure configuration
+- [ ] Configure the rotated `HUGGINGFACE_API_KEY` in Render and verify production reports `whisper_client: ready`
+- [x] Diagnose and repair the code path behind the production Indian Lawyer dataset indexing failure with bounded `LEGAL_INDEX_BATCH_SIZE` batches and provider-error context; 30 backend tests pass
+- [ ] Redeploy the bounded legal-index batching repair to Render and verify health reports Indian Lawyer ingestion without the `expected 128, indexed 0` failure and with indexed Qdrant points

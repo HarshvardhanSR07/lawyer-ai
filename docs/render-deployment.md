@@ -37,13 +37,14 @@ Add these in **Render Dashboard → Service → Environment**. Enter secrets in 
 | `SUPABASE_SERVICE_ROLE_KEY` | Required | Server-only Supabase persistence key. |
 | `CORS_ORIGINS` | Required in production | The public Render origin, for example `https://your-service.onrender.com`. |
 | `EMBEDDINGS_PROVIDER` | Required | Set to `openai`; production uses the remote `OPENAI_EMBEDDING_MODEL` (default: `text-embedding-3-small`) and rejects local fallback models to avoid memory-heavy downloads. |
+| `LEGAL_INDEX_BATCH_SIZE` | Optional | Defaults to `16`; limits each Indian Lawyer/legal-source embedding and Qdrant upsert batch to reduce provider rate-limit pressure. |
 | `INDIAN_LAWYER_DATASET_AUTO_INDEX` | Optional | Defaults to `true`; use `false` only to defer dataset indexing while validating infrastructure. |
 
 Render provides `PORT`; do **not** set it yourself. FastAPI's private port defaults to `8000`; do **not** expose it through Render.
 
 ## Startup behavior
 
-The service initializes persistent clients during startup and reports readiness through `GET /health`. It does **not** make a quota-consuming OpenAI embeddings request before binding the public port. Demo and Indian Lawyer dataset indexing are deferred for `RAG_STARTUP_INDEX_DELAY_SECONDS` (default: `60`) so a transient provider `429` cannot terminate startup. Set `OPENAI_EMBEDDING_MAX_ATTEMPTS` (default: `3`) to control bounded retry attempts for later embedding requests. If Whisper initialization fails, the service remains healthy and returns a clear microphone-unavailable response from `/api/stt`; typed questions remain available.
+The service initializes persistent clients during startup and reports readiness through `GET /health`. It does **not** make a quota-consuming OpenAI embeddings request before binding the public port. Demo and Indian Lawyer dataset indexing are deferred for `RAG_STARTUP_INDEX_DELAY_SECONDS` (default: `60`) so a transient provider `429` cannot terminate startup. Indexing is split into bounded `LEGAL_INDEX_BATCH_SIZE` batches, and `OPENAI_EMBEDDING_MAX_ATTEMPTS` (default: `3`) controls bounded retry attempts for later embedding requests. If Whisper initialization fails, the service remains healthy and returns a clear microphone-unavailable response from `/api/stt`; typed questions remain available.
 
 ## Deployment sequence
 

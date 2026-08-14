@@ -17,10 +17,11 @@ Configure these values through the project’s secure settings. **Do not commit 
 | `LIVEKIT_API_SECRET` | Yes | Node | Signs short-lived, role-specific LiveKit tokens. Never expose it to the browser. |
 | `QDRANT_URL` | Yes | FastAPI | Remote Qdrant endpoint initialized before the instance accepts traffic. |
 | `QDRANT_API_KEY` | Recommended | FastAPI | Authenticates the remote Qdrant connection. |
-| `OPENAI_API_KEY` | Yes when `EMBEDDINGS_PROVIDER=openai` | FastAPI | Supplies eager legal-document embeddings. |
+| `OPENAI_API_KEY` | Yes when `EMBEDDINGS_PROVIDER=openai` | FastAPI | Supplies remote legal-document embeddings after readiness; no embedding request is made during startup. |
 | `EMBEDDINGS_PROVIDER` | No | FastAPI | Defaults to `openai` when `OPENAI_API_KEY` exists; otherwise `local`. |
 | `OPENAI_EMBEDDING_MODEL` | No | FastAPI | Defaults to `text-embedding-3-small`. |
 | `EMBEDDING_DIMENSIONS` | No | FastAPI | Defaults to `768`; must match the Qdrant collection dimension. |
+| `LEGAL_INDEX_BATCH_SIZE` | No | FastAPI | Defaults to `16`; bounds each remote embedding and Qdrant upsert batch while indexing legal sources and the Indian Lawyer dataset. |
 | `EMBEDDINGS_MODEL` | Conditional | FastAPI | Required only for local embeddings; defaults to `intfloat/multilingual-e5-large`. |
 | `HUGGINGFACE_API_KEY` | Yes for Hugging Face reasoning and Whisper STT | FastAPI | Authorizes the configured remote reasoning model and approved Whisper transcription requests. |
 | `REASONING_MODEL` | No | FastAPI | Defaults to `mistralai/Mistral-7B-Instruct-v0.3`. |

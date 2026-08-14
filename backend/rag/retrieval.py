@@ -64,6 +64,7 @@ class RAGRetriever:
         self.legal_collection = "legal_knowledge"
         self.case_collection = "case_knowledge"
         self.vector_dim = self.embeddings.vector_dim
+        self.last_legal_index_error: Optional[str] = None
         logger.info("RAGRetriever initialized with Qdrant at %s", self.qdrant_url)
 
     async def initialize(self):
@@ -148,37 +149,44 @@ class RAGRetriever:
 
     async def index_legal_documents(self, documents: List[Dict]) -> int:
         """Batch-embed and upsert legal documents with provenance-preserving payloads."""
+        indexed_count = 0
+        self.last_legal_index_error = None
         try:
             if not documents:
                 return 0
-            vectors = await self.embeddings.embed_batch([doc["text"] for doc in documents])
-            if len(vectors) != len(documents):
-                raise RuntimeError("Embedding provider returned an unexpected legal-document vector count")
-            points = [PointStruct(
-                id=stable_legal_document_point_id(doc),
-                vector=vector,
-                payload={
-                    "source": doc.get("source", ""),
-                    "section": doc.get("section", ""),
-                    "document_name": doc.get("document_name", ""),
-                    "page_number": doc.get("page_number", 0),
-                    "text": doc.get("text", ""),
-                    "authority_level": doc.get("authority_level", "primary"),
-                    "dataset_name": doc.get("dataset_name", ""),
-                    "dataset_config": doc.get("dataset_config", ""),
-                    "dataset_split": doc.get("dataset_split", ""),
-                    "dataset_row": doc.get("dataset_row"),
-                    "dataset_chunk": doc.get("dataset_chunk"),
-                    "provenance_url": doc.get("provenance_url", ""),
-                    "citation_warning": doc.get("citation_warning", ""),
-                },
-            ) for doc, vector in zip(documents, vectors)]
-            await asyncio.to_thread(self.client.upsert, collection_name=self.legal_collection, points=points)
-            logger.info("Indexed %s legal documents", len(documents))
-            return len(documents)
+            batch_size = max(1, int(os.getenv("LEGAL_INDEX_BATCH_SIZE", "16")))
+            for start in range(0, len(documents), batch_size):
+                batch = documents[start:start + batch_size]
+                vectors = await self.embeddings.embed_batch([doc["text"] for doc in batch])
+                if len(vectors) != len(batch):
+                    raise RuntimeError("Embedding provider returned an unexpected legal-document vector count")
+                points = [PointStruct(
+                    id=stable_legal_document_point_id(doc),
+                    vector=vector,
+                    payload={
+                        "source": doc.get("source", ""),
+                        "section": doc.get("section", ""),
+                        "document_name": doc.get("document_name", ""),
+                        "page_number": doc.get("page_number", 0),
+                        "text": doc.get("text", ""),
+                        "authority_level": doc.get("authority_level", "primary"),
+                        "dataset_name": doc.get("dataset_name", ""),
+                        "dataset_config": doc.get("dataset_config", ""),
+                        "dataset_split": doc.get("dataset_split", ""),
+                        "dataset_row": doc.get("dataset_row"),
+                        "dataset_chunk": doc.get("dataset_chunk"),
+                        "provenance_url": doc.get("provenance_url", ""),
+                        "citation_warning": doc.get("citation_warning", ""),
+                    },
+                ) for doc, vector in zip(batch, vectors)]
+                await asyncio.to_thread(self.client.upsert, collection_name=self.legal_collection, points=points)
+                indexed_count += len(batch)
+            logger.info("Indexed %s legal documents", indexed_count)
+            return indexed_count
         except Exception as error:
+            self.last_legal_index_error = str(error)
             logger.error("Legal indexing error: %s", error)
-            return 0
+            return indexed_count
 
     async def index_case_documents(self, case_id: str, document_name: str, chunks: List[Dict]) -> int:
         """Batch-embed and upsert one uploaded document's case-evidence chunks."""

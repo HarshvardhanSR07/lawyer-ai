@@ -136,8 +136,10 @@ class IndianLawyerDatasetIngestor:
                 if documents:
                     indexed = await self.rag_retriever.index_legal_documents(documents)
                     if indexed != len(documents):
+                        cause = getattr(self.rag_retriever, "last_legal_index_error", None)
+                        cause_suffix = f"; cause: {cause}" if cause else ""
                         raise RuntimeError(
-                            f"Qdrant indexing incomplete at row offset {offset}: expected {len(documents)}, indexed {indexed}"
+                            f"Qdrant indexing incomplete at row offset {offset}: expected {len(documents)}, indexed {indexed}{cause_suffix}"
                         )
                     self.chunks_indexed += indexed
                 self.rows_indexed += len(rows)

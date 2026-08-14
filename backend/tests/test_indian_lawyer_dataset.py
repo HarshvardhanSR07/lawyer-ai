@@ -1,4 +1,5 @@
 import asyncio
+import os
 import unittest
 
 from data.indian_lawyer_dataset import (
@@ -27,6 +28,15 @@ class _FakeQdrant:
         self.upsert_calls += 1
         for point in points:
             self.points_by_id[str(point.id)] = point
+
+
+class _FailingEmbeddings:
+    """Simulates an embedding provider that raises on every batch request."""
+    async def embed_text(self, text):
+        raise RuntimeError("Simulated embedding provider failure")
+
+    async def embed_batch(self, texts):
+        raise RuntimeError("Simulated embedding provider failure")
 
 
 class IndianLawyerDatasetIngestorTests(unittest.TestCase):
@@ -84,6 +94,32 @@ class IndianLawyerDatasetIngestorTests(unittest.TestCase):
         self.assertEqual(len(retriever.client.points_by_id), len(documents))
         self.assertEqual(first_ids, {stable_legal_document_point_id(document) for document in documents})
 
+    def test_legal_documents_use_bounded_embedding_batches(self):
+        class _BatchTrackingEmbeddings(_FakeEmbeddings):
+            def __init__(self):
+                self.batches = []
+
+            async def embed_batch(self, texts):
+                self.batches.append(texts)
+                return await super().embed_batch(texts)
+
+        documents = [
+            *IndianLawyerDatasetIngestor.build_documents(1, {"output": "One"}),
+            *IndianLawyerDatasetIngestor.build_documents(2, {"output": "Two"}),
+            *IndianLawyerDatasetIngestor.build_documents(3, {"output": "Three"}),
+        ]
+        retriever = object.__new__(RAGRetriever)
+        retriever.embeddings = _BatchTrackingEmbeddings()
+        retriever.client = _FakeQdrant()
+        retriever.legal_collection = "legal_knowledge"
+
+        with unittest.mock.patch.dict(os.environ, {"LEGAL_INDEX_BATCH_SIZE": "2"}):
+            indexed = asyncio.run(retriever.index_legal_documents(documents))
+
+        self.assertEqual(indexed, 3)
+        self.assertEqual([len(batch) for batch in retriever.embeddings.batches], [2, 1])
+        self.assertEqual(retriever.client.upsert_calls, 2)
+
     def test_case_document_upserts_use_stable_ids_and_one_batch_embedding_call(self):
         class _BatchTrackingEmbeddings(_FakeEmbeddings):
             def __init__(self):
@@ -112,3 +148,54 @@ class IndianLawyerDatasetIngestorTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class IndexLegalDocumentsErrorHandlingTests(unittest.TestCase):
+    """Guard the production path where embed_batch raises and index_legal_documents returns 0."""
+
+    def test_index_legal_documents_returns_zero_when_embedding_fails(self):
+        """index_legal_documents must return 0 (not raise) when the embedding provider fails."""
+        retriever = object.__new__(RAGRetriever)
+        retriever.embeddings = _FailingEmbeddings()
+        retriever.client = _FakeQdrant()
+        retriever.legal_collection = "legal_knowledge"
+
+        documents = IndianLawyerDatasetIngestor.build_documents(
+            1, {"instruction": "Test", "output": "Legal output text."}
+        )
+        result = asyncio.run(retriever.index_legal_documents(documents))
+        self.assertEqual(result, 0)
+        self.assertEqual(retriever.client.upsert_calls, 0)
+        self.assertEqual(retriever.last_legal_index_error, "Simulated embedding provider failure")
+
+    def test_ingestion_loop_records_error_when_indexing_returns_zero(self):
+        """The ingestion loop must record a descriptive error when index_legal_documents returns 0."""
+        class _ZeroIndexRetriever:
+            async def index_legal_documents(self, documents):
+                return 0
+
+        ingestor = IndianLawyerDatasetIngestor(_ZeroIndexRetriever(), page_size=10)
+        ingestor.http_client = object()  # non-None sentinel; real HTTP is not called
+
+        # Patch the HTTP call to return a minimal valid page with one row
+        import unittest.mock as mock
+
+        async def _fake_get(*args, **kwargs):
+            class _FakeResponse:
+                def raise_for_status(self):
+                    pass
+                def json(self):
+                    return {
+                        "rows": [{"row_idx": 0, "row": {"instruction": "Q", "output": "A"}}],
+                        "num_rows_total": 1,
+                    }
+            return _FakeResponse()
+
+        with mock.patch.object(ingestor, "http_client") as mock_client:
+            mock_client.get = _fake_get
+            with self.assertRaises(RuntimeError) as ctx:
+                asyncio.run(ingestor.index_all())
+
+        self.assertIn("expected", str(ctx.exception).lower())
+        self.assertEqual(ingestor.status, "failed")
+        self.assertIsNotNone(ingestor.last_error)
