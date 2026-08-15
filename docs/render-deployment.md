@@ -26,7 +26,8 @@ Add these in **Render Dashboard → Service → Environment**. Enter secrets in 
 | `QDRANT_API_KEY` | Required for protected Qdrant | The Qdrant cluster API key. |
 | `JWT_SECRET` | Required | A high-entropy secret used to sign browser-scoped guest sessions in this no-auth MVP. Generate a new value for Render. |
 | `OPENAI_API_KEY` | Required | Used for eager OpenAI embeddings when `EMBEDDINGS_PROVIDER=openai`. |
-| `HUGGINGFACE_API_KEY` | Recommended | Used for reasoning and Whisper transcription. If it is unavailable, microphone transcription is disabled while typed legal assistance remains available. |
+| `HUGGINGFACE_API_KEY` | Required | Used by Hugging Face router legal reasoning. |
+| `GROQ_API_KEY` | Recommended | Used only for optional Groq `whisper-large-v3-turbo` microphone transcription. If it is unavailable, typed legal assistance remains available. |
 | `RIME_API_KEY` | Required | Used only for verified legal-response text-to-speech. |
 | `BEY_API_KEY` | Required | Beyond Presence render-only API key; `BEYOND_PRESENCE_API_KEY` is also accepted for compatibility. |
 | `BEYOND_PRESENCE_AVATAR_ID` | Required | Approved Beyond Presence avatar identifier. |
@@ -44,7 +45,7 @@ Render provides `PORT`; do **not** set it yourself. FastAPI's private port defau
 
 ## Startup behavior
 
-The service initializes persistent clients during startup and reports readiness through `GET /health`. It does **not** make a quota-consuming OpenAI embeddings request before binding the public port. Demo and Indian Lawyer dataset indexing are deferred for `RAG_STARTUP_INDEX_DELAY_SECONDS` (default: `60`) so a transient provider `429` cannot terminate startup. Indexing is split into bounded `LEGAL_INDEX_BATCH_SIZE` batches, and `OPENAI_EMBEDDING_MAX_ATTEMPTS` (default: `3`) controls bounded retry attempts for later embedding requests. If Whisper initialization fails, the service remains healthy and returns a clear microphone-unavailable response from `/api/stt`; typed questions remain available.
+The service initializes persistent clients during startup and reports readiness through `GET /health`. It does **not** make a quota-consuming OpenAI embeddings request before binding the public port. Demo and Indian Lawyer dataset indexing are deferred for `RAG_STARTUP_INDEX_DELAY_SECONDS` (default: `60`) so a transient provider `429` cannot terminate startup. Indexing is split into bounded `LEGAL_INDEX_BATCH_SIZE` batches, and `OPENAI_EMBEDDING_MAX_ATTEMPTS` (default: `3`) controls bounded retry attempts for later embedding requests. If Groq Whisper initialization fails, the service remains healthy and returns a clear microphone-unavailable response from `/api/stt`; typed questions remain available.
 
 ## Deployment sequence
 

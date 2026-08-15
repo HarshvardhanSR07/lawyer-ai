@@ -2,10 +2,10 @@
 
 ## Required pipeline
 
-LawyerAI retains ownership of turn detection, speech-to-text, legal retrieval, verified reasoning, and speech synthesis. Rime is the exclusive speech provider. Beyond Presence is used only after Rime produces audio, solely to render lip-synced avatar video.
+LawyerAI retains ownership of turn detection, speech-to-text, legal retrieval, verified reasoning, and speech synthesis. Groq Whisper provides optional speech-to-text; Rime is the exclusive text-to-speech provider. Beyond Presence is used only after Rime produces audio, solely to render lip-synced avatar video.
 
 ```text
-User speech → Rime STT → verified legal reasoning/RAG → Rime TTS audio → Beyond Presence Speech-to-Video → avatar video
+User speech → Groq Whisper STT → verified legal reasoning/RAG → Rime TTS audio → Beyond Presence Speech-to-Video → avatar video
 ```
 
 No Beyond Presence managed agent, managed conversation, STT, LLM, or TTS service may be used in this path.
@@ -26,7 +26,7 @@ The render-only session endpoint is `POST https://api.bey.dev/v1/sessions`, docu
 
 Rime’s published cloud API is a low-latency **text-to-speech** service. Its documented HTTP and WebSocket endpoints synthesize speech, return audio, and expose speech metadata; they do not expose a provider-native speech-to-text endpoint. Rime’s own voice-agent guide assigns speech recognition to a separately selected recognition component and assigns Rime speech generation. [4] [5]
 
-Accordingly, the strict requirement that “Rime handles STT” cannot be implemented as written with the current Rime cloud API. The smallest compliant substitute is browser-native Web Speech recognition, which keeps third-party STT credentials out of the application while preserving Rime as the only external speech provider. If browser-native recognition is unsuitable for the target browsers or jurisdiction, the application needs an explicitly approved STT provider.
+Accordingly, the strict requirement that “Rime handles STT” cannot be implemented with the current Rime cloud API. LawyerAI uses the explicitly approved Groq `whisper-large-v3-turbo` transcription endpoint for the optional microphone path. If its credential, quota, or network path is unavailable, the FastAPI service stays healthy and the interface retains typed legal questions as the fallback; it does not attempt to send transcription work to Rime or Beyond Presence.
 
 ## Hosting implication
 
@@ -42,3 +42,5 @@ The official quickstart requires a LiveKit agent worker plus LiveKit API key, se
 [6]: https://docs.livekit.io/agents/integrations/avatar/bey/ "LiveKit — Beyond Presence virtual avatar integration guide"
 [7]: https://docs.livekit.io/transport/media/publish/ "LiveKit — Publishing media from a backend"
 [8]: https://docs.livekit.io/reference/client-sdk-node/ "LiveKit — @livekit/rtc-node reference"
+
+[9]: https://console.groq.com/docs/speech-to-text "Groq — Speech to Text"

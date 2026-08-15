@@ -11,10 +11,11 @@ LawyerAI’s render-only avatar path uses the LiveKit audio-to-video session con
 | [LiveKit — Rime TTS](https://docs.livekit.io/agents/models/tts/rime/) | Confirms that Rime is a TTS integration and shows Coda with the `celeste` speaker; it also identifies the HTTP synthesis base URL. |
 | [LiveKit JS Client SDK](https://docs.livekit.io/reference/client-sdk-js/) | States that a browser client can publish any audio source represented by a `MediaStreamTrack`, enabling a Rime response stream to be published into the renderer’s room. |
 | [LiveKit — Publish media](https://docs.livekit.io/transport/media/publish/) | Documents browser publication and explains that backend publishers use an audio source and a track; it confirms that a renderer can consume the published media like any other room participant. |
+| [Groq — Speech to Text](https://console.groq.com/docs/speech-to-text) | Documents the OpenAI-compatible transcription endpoint, direct browser-relevant audio uploads, and `whisper-large-v3-turbo`. |
 
 > The direct render-session adapter in `server/beyondPresence.ts` uses the documented `POST /v1/sessions` payload. The browser receives its own short-lived LiveKit token; the renderer token is never exposed to the browser.
 
-> Rime’s public documentation describes TTS rather than STT. LawyerAI therefore does not retain a hidden Whisper or other STT fallback. The `/api/stt` endpoint reports that unsupported configuration explicitly until the product has an approved STT provider or a Rime-provided transcription capability.
+> Rime’s public documentation describes TTS rather than STT. LawyerAI uses Groq `whisper-large-v3-turbo` only for optional speech-to-text. `/api/stt` reports an unavailable Groq dependency explicitly, while typed questions remain available; neither Beyond Presence nor Rime is used for transcription.
 
 > The browser turns its Rime-generated response audio into a `MediaStreamTrack` and publishes that one response track into the session’s LiveKit room. Beyond Presence may consume the audio track only for lip-synced video rendering; the verified response text remains outside the renderer integration.
 

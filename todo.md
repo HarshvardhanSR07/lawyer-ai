@@ -160,9 +160,11 @@
 - [x] Document and verify the intentional production remote-embedding provider selection so startup logs cannot be mistaken for an unsafe local-model fallback
 - [x] Add and format-check a parameterized GitHub Actions workflow and ECS task-definition template for the always-on LawyerAI Docker service
 - [x] Rotate the project `HUGGINGFACE_API_KEY` to the user-supplied credential and validate the secure configuration
-- [ ] Configure the rotated `HUGGINGFACE_API_KEY` in Render and verify production reports `whisper_client: ready`
+- [ ] Retire the legacy Hugging Face Whisper Render configuration only after the Groq Whisper migration is deployed and public health confirms the active transcription client is ready
 - [x] Diagnose and repair the code path behind the production Indian Lawyer dataset indexing failure with bounded `LEGAL_INDEX_BATCH_SIZE` batches and provider-error context; 30 backend tests pass
 - [ ] Redeploy the bounded legal-index batching repair to Render and verify health reports Indian Lawyer ingestion without the `expected 128, indexed 0` failure and with indexed Qdrant points
 - [ ] Replace the OpenAI-dependent provider configuration with a validated Groq-compatible path while preserving remote embeddings, fail-closed legal verification, and production fallbacks
 - [ ] Select and securely configure an OpenAI-replacement embedding provider, then migrate Qdrant vector collections and reindex legal sources before removing `OPENAI_API_KEY`
 - [x] Route verified legal reasoning through Hugging Face’s OpenAI-compatible router using `openai/gpt-oss-120b:fastest`, while preserving the fail-closed verification gate; router content and JSON-envelope checks passed
+- [ ] Configure `HUGGINGFACE_API_KEY` in Render for the Hugging Face router reasoning client and verify the deployed verified-response path
+- [x] Replace the optional Hugging Face Whisper microphone client with Groq `whisper-large-v3-turbo`, preserving non-fatal startup and typed-input fallback if Groq STT is unavailable; direct and Node-to-FastAPI live transcription checks passed

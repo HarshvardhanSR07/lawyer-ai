@@ -23,11 +23,15 @@ Configure these values through the project’s secure settings. **Do not commit 
 | `EMBEDDING_DIMENSIONS` | No | FastAPI | Defaults to `768`; must match the Qdrant collection dimension. |
 | `LEGAL_INDEX_BATCH_SIZE` | No | FastAPI | Defaults to `16`; bounds each remote embedding and Qdrant upsert batch while indexing legal sources and the Indian Lawyer dataset. |
 | `EMBEDDINGS_MODEL` | Conditional | FastAPI | Required only for local embeddings; defaults to `intfloat/multilingual-e5-large`. |
-| `HUGGINGFACE_API_KEY` | Yes for Hugging Face router reasoning and Whisper STT | FastAPI | Authorizes the configured remote reasoning model and approved Whisper transcription requests. |
+| `HUGGINGFACE_API_KEY` | Yes for Hugging Face router reasoning | FastAPI | Authorizes the configured remote legal-reasoning model. |
 | `REASONING_PROVIDER` | No | FastAPI | Defaults to `huggingface_router`. Use `huggingface_inference` only to retain the legacy direct Hugging Face inference endpoint. |
 | `REASONING_MODEL` | No | FastAPI | Defaults to `openai/gpt-oss-120b:fastest` when `REASONING_PROVIDER=huggingface_router`. |
 | `HF_ROUTER_API_BASE` | No | FastAPI | Defaults to `https://router.huggingface.co/v1`; override only for an approved compatible router. |
-| `WHISPER_MODEL` | No | FastAPI | Model identifier for Hugging Face Whisper STT once enabled. |
+| `GROQ_API_KEY` | Yes for microphone transcription | FastAPI | Authorizes optional Groq Whisper STT. Its absence disables only microphone transcription. |
+| `GROQ_STT_MODEL` | No | FastAPI | Defaults to `whisper-large-v3-turbo`. |
+| `GROQ_STT_URL` | No | FastAPI | Defaults to `https://api.groq.com/openai/v1/audio/transcriptions`. |
+| `GROQ_STT_LANGUAGE` | No | FastAPI | Optional ISO-639-1 source language hint for lower-latency transcription. |
+| `GROQ_STT_MAX_AUDIO_BYTES` | No | FastAPI | Defaults to 24 MiB, keeping direct browser uploads below Groq's documented 25 MB free-tier limit. |
 | `INDIAN_LAWYER_DATASET_AUTO_INDEX` | No | FastAPI | Defaults to `true` on the always-on instance; set to `false` only to defer public `default/train` indexing. The import runs in the persistent background worker after readiness. |
 | `SUPABASE_URL` | Yes | Node | LawyerAI session, document, and transcript persistence endpoint. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Node | Server-only Supabase persistence credential. |
@@ -38,7 +42,7 @@ Configure these values through the project’s secure settings. **Do not commit 
 | `JWT_SECRET` | Yes | Node | Signs isolated, browser-scoped guest sessions for the no-auth MVP. Use a high-entropy production secret. |
 | `DATABASE_URL` | Conditional | Node | Required only for procedures that use the template database helpers. |
 
-> **Voice policy:** Rime supplies text-to-speech only. Hugging Face Whisper is the approved speech-to-text provider for this deployment once `HUGGINGFACE_API_KEY` validation succeeds; typed input remains available whenever microphone transcription is unavailable. Legal reasoning, citations, and Rime audio responses continue to work even if the avatar renderer cannot start.
+> **Voice policy:** Rime supplies text-to-speech only. Groq `whisper-large-v3-turbo` is the optional speech-to-text provider, authenticated with `GROQ_API_KEY`; typed input remains available whenever microphone transcription is unavailable. Legal reasoning, citations, and Rime audio responses continue to work even if the avatar renderer cannot start.
 
 > **Avatar policy:** Beyond Presence receives only renderer-session credentials through `POST /v1/sessions`. It must never receive documents, legal response text, reasoning instructions, STT configuration, or TTS configuration.
 

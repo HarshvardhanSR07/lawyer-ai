@@ -5,7 +5,7 @@ Handles:
 - RAG (Qdrant retrieval)
 - Reasoning (Hugging Face LLM)
 - Verification (citation accuracy gate)
-- Voice I/O (Hugging Face Whisper STT and Rime TTS)
+- Voice I/O (Groq Whisper STT and Rime TTS)
 """
 
 from contextlib import asynccontextmanager
@@ -24,7 +24,7 @@ import asyncio
 from ai.reasoning import ReasoningEngine
 from rag.retrieval import RAGRetriever
 from voice.rime import RimeVoice
-from voice.whisper import WhisperTranscriber
+from voice.groq_whisper import GroqWhisperTranscriber
 from documents.parser import DocumentParser
 from data.demo_loader import load_demo_data, get_demo_case_metadata
 from data.indian_lawyer_dataset import IndianLawyerDatasetIngestor
@@ -36,31 +36,33 @@ logger = logging.getLogger(__name__)
 rag_retriever: Optional[RAGRetriever] = None
 reasoning_engine: Optional[ReasoningEngine] = None
 rime_voice: Optional[RimeVoice] = None
-whisper_transcriber: Optional[WhisperTranscriber] = None
+stt_transcriber: Optional[GroqWhisperTranscriber] = None
 doc_parser: Optional[DocumentParser] = None
 indian_lawyer_dataset: Optional[IndianLawyerDatasetIngestor] = None
 
 
-async def _initialize_optional_whisper(app: FastAPI, candidate: WhisperTranscriber) -> Optional[WhisperTranscriber]:
+async def _initialize_optional_stt(app: FastAPI, candidate: GroqWhisperTranscriber) -> Optional[GroqWhisperTranscriber]:
     """Initialize microphone transcription without making typed legal assistance unavailable."""
     try:
         await candidate.initialize()
     except Exception as exc:
-        logger.warning("Whisper unavailable; microphone transcription is disabled while typed assistance remains available: %s", exc)
+        logger.warning("Groq Whisper unavailable; microphone transcription is disabled while typed assistance remains available: %s", exc)
         await candidate.close()
-        app.state.whisper_status = "unavailable"
-        app.state.whisper_startup_error = "Microphone transcription is temporarily unavailable. You can continue with typed questions."
+        app.state.stt_status = "unavailable"
+        app.state.stt_provider = "groq-whisper"
+        app.state.stt_startup_error = "Microphone transcription is temporarily unavailable. You can continue with typed questions."
         return None
 
-    app.state.whisper_status = "ready"
-    app.state.whisper_startup_error = None
+    app.state.stt_status = "ready"
+    app.state.stt_provider = "groq-whisper"
+    app.state.stt_startup_error = None
     return candidate
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Eagerly initialize all reusable backend resources once per Reserved instance."""
-    global rag_retriever, reasoning_engine, rime_voice, whisper_transcriber, doc_parser, indian_lawyer_dataset
+    global rag_retriever, reasoning_engine, rime_voice, stt_transcriber, doc_parser, indian_lawyer_dataset
     beyond_client = None
     knowledge_bootstrap_task: Optional[asyncio.Task] = None
     logger.info("Starting persistent LawyerAI backend resources")
@@ -68,7 +70,7 @@ async def lifespan(app: FastAPI):
         rag_retriever = RAGRetriever()
         reasoning_engine = ReasoningEngine()
         rime_voice = RimeVoice()
-        whisper_candidate = WhisperTranscriber()
+        stt_candidate = GroqWhisperTranscriber()
         doc_parser = DocumentParser()
         indian_lawyer_dataset = IndianLawyerDatasetIngestor(rag_retriever)
         beyond_client = httpx.AsyncClient(
@@ -80,7 +82,7 @@ async def lifespan(app: FastAPI):
         await rag_retriever.initialize()
         await reasoning_engine.initialize()
         await rime_voice.initialize()
-        whisper_transcriber = await _initialize_optional_whisper(app, whisper_candidate)
+        stt_transcriber = await _initialize_optional_stt(app, stt_candidate)
         await indian_lawyer_dataset.initialize()
 
         app.state.beyond_client = beyond_client
@@ -110,8 +112,8 @@ async def lifespan(app: FastAPI):
             await beyond_client.aclose()
         if rime_voice:
             await rime_voice.close()
-        if whisper_transcriber:
-            await whisper_transcriber.close()
+        if stt_transcriber:
+            await stt_transcriber.close()
         if reasoning_engine:
             await reasoning_engine.close()
         if rag_retriever:
@@ -238,7 +240,8 @@ async def health_check():
             "qdrant": "ready",
             "embeddings": "ready",
             "rime_client": "ready",
-            "whisper_client": getattr(app.state, "whisper_status", "unavailable"),
+            "stt_client": getattr(app.state, "stt_status", "unavailable"),
+            "stt_provider": getattr(app.state, "stt_provider", "groq-whisper"),
             "beyond_client": "ready" if getattr(app.state, "beyond_client", None) else "unavailable",
             "indian_lawyer_dataset": indian_lawyer_dataset.snapshot() if indian_lawyer_dataset else {"status": "unavailable"},
         },
@@ -272,17 +275,17 @@ async def start_indian_lawyer_dataset_index():
 @app.post("/api/stt", response_model=STTResponse)
 async def speech_to_text(request: STTRequest):
     """
-    Transcribe a bounded browser audio window with Hugging Face Whisper.
+    Transcribe a bounded browser audio window with Groq Whisper.
     Rime remains exclusively responsible for text-to-speech.
     """
     try:
-        if not whisper_transcriber:
+        if not stt_transcriber:
             raise HTTPException(
                 status_code=503,
-                detail=getattr(app.state, "whisper_startup_error", "Whisper transcription is not ready"),
+                detail=getattr(app.state, "stt_startup_error", "Microphone transcription is not ready"),
             )
         audio_bytes = base64.b64decode(request.audio_base64, validate=True)
-        result = await whisper_transcriber.transcribe(audio_bytes, request.mime_type)
+        result = await stt_transcriber.transcribe(audio_bytes, request.mime_type)
         return STTResponse(
             transcript=result["text"],
             is_final=request.is_final,
@@ -291,8 +294,8 @@ async def speech_to_text(request: STTRequest):
     except (ValueError, base64.binascii.Error) as e:
         raise HTTPException(status_code=400, detail=f"Invalid audio transcription request: {e}")
     except httpx.HTTPStatusError as e:
-        logger.error("Whisper request failed: %s", e.response.status_code)
-        raise HTTPException(status_code=502, detail="Whisper transcription provider is unavailable")
+        logger.error("Groq Whisper request failed: %s", e.response.status_code)
+        raise HTTPException(status_code=502, detail="Groq Whisper transcription provider is unavailable")
     except HTTPException:
         raise
     except Exception as e:
