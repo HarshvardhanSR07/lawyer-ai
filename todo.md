@@ -168,3 +168,8 @@
 - [x] Route verified legal reasoning through Hugging Face’s OpenAI-compatible router using `openai/gpt-oss-120b:fastest`, while preserving the fail-closed verification gate; router content and JSON-envelope checks passed
 - [ ] Configure `HUGGINGFACE_API_KEY` in Render for the Hugging Face router reasoning client and verify the deployed verified-response path
 - [x] Replace the optional Hugging Face Whisper microphone client with Groq `whisper-large-v3-turbo`, preserving non-fatal startup and typed-input fallback if Groq STT is unavailable; direct and Node-to-FastAPI live transcription checks passed
+- [ ] Diagnose the reported production dialogue microphone failure and verify the deployed Groq STT configuration, browser capture path, and typed-input fallback
+- [ ] Integrate the user-authorized Cloudflare R2 object storage connection for appropriate server-side LawyerAI files without exposing access credentials
+- [x] Validate the Groq microphone pipeline’s graceful degradation to typed input under a transcription-provider failure; 7 focused backend tests passed
+- [ ] Verify Cloudflare R2 readiness for server-side audio-transcript or uploaded-document storage once valid credentials and a bucket are available
+- [x] Verify Rime WAV synthesis and the verified-response dialogue playback contract; live WAV synthesis and 5 client playback/renderer-fallback tests passed

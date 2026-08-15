@@ -1,4 +1,36 @@
+import { createHash, createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
+
+function sha256(value: string) {
+  return createHash("sha256").update(value, "utf8").digest("hex");
+}
+
+function hmac(key: Buffer | string, value: string) {
+  return createHmac("sha256", key).update(value, "utf8").digest();
+}
+
+function cloudflareR2Authorization(endpoint: URL, accessKeyId: string, secretAccessKey: string) {
+  const now = new Date();
+  const amzDate = now.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+  const dateStamp = amzDate.slice(0, 8);
+  const payloadHash = sha256("");
+  const canonicalHeaders = `host:${endpoint.host}\nx-amz-content-sha256:${payloadHash}\nx-amz-date:${amzDate}\n`;
+  const signedHeaders = "host;x-amz-content-sha256;x-amz-date";
+  const canonicalRequest = `GET\n/\n\n${canonicalHeaders}\n${signedHeaders}\n${payloadHash}`;
+  const credentialScope = `${dateStamp}/auto/s3/aws4_request`;
+  const stringToSign = `AWS4-HMAC-SHA256\n${amzDate}\n${credentialScope}\n${sha256(canonicalRequest)}`;
+  const dateKey = hmac(`AWS4${secretAccessKey}`, dateStamp);
+  const regionKey = hmac(dateKey, "auto");
+  const serviceKey = hmac(regionKey, "s3");
+  const signingKey = hmac(serviceKey, "aws4_request");
+  const signature = createHmac("sha256", signingKey).update(stringToSign, "utf8").digest("hex");
+
+  return {
+    authorization: `AWS4-HMAC-SHA256 Credential=${accessKeyId}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`,
+    amzDate,
+    payloadHash,
+  };
+}
 
 describe("configured service credentials", () => {
   it("authenticates to the configured Qdrant Cloud collections endpoint", async () => {
@@ -87,6 +119,37 @@ describe("configured service credentials", () => {
 
     expect(response.status).toBe(200);
   }, 15_000);
+
+  it("authenticates the configured Cloudflare API token and R2 S3 credentials", async () => {
+    const apiToken = process.env.CLOUDFLARE_API_TOKEN;
+    const endpoint = process.env.CLOUDFLARE_R2_ENDPOINT;
+    const accessKeyId = process.env.CLOUDFLARE_R2_ACCESS_KEY_ID;
+    const secretAccessKey = process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY;
+
+    expect(apiToken).toBeTruthy();
+    expect(endpoint).toMatch(/^https:\/\/.+\.r2\.cloudflarestorage\.com$/);
+    expect(accessKeyId).toBeTruthy();
+    expect(secretAccessKey).toBeTruthy();
+
+    const tokenResponse = await fetch("https://api.cloudflare.com/client/v4/user/tokens/verify", {
+      headers: { Authorization: `Bearer ${apiToken!}` },
+      signal: AbortSignal.timeout(10_000),
+    });
+    expect(tokenResponse.status).toBe(200);
+    expect((await tokenResponse.json()) as { success?: boolean }).toMatchObject({ success: true });
+
+    const r2Url = new URL(endpoint!);
+    const signed = cloudflareR2Authorization(r2Url, accessKeyId!, secretAccessKey!);
+    const r2Response = await fetch(`${r2Url.origin}/`, {
+      headers: {
+        Authorization: signed.authorization,
+        "x-amz-content-sha256": signed.payloadHash,
+        "x-amz-date": signed.amzDate,
+      },
+      signal: AbortSignal.timeout(10_000),
+    });
+    expect(r2Response.status).toBe(200);
+  }, 25_000);
 
   it("authenticates the configured Rime key for legal-response synthesis", async () => {
     const apiKey = process.env.RIME_API_KEY;
